@@ -1,0 +1,78 @@
+{
+    "variables": {
+        "user": "vagrant",
+        "password": "vagrant",
+        "disk_size": "10000",
+        "domain": ""
+    },
+
+    "builders":
+    [
+        {
+            "name": "jessie",
+            "ssh_wait_timeout": "30m",
+            "type": "qemu",
+            "format": "qcow2",
+            "accelerator": "kvm",
+            "net_device": "virtio-net",
+            "disk_cache": "none",
+            "disk_interface": "virtio",
+            "headless": "true",
+            "disk_size": "{{ user `disk_size`}}",
+            "qemuargs": [[ "-m", "1024M" ],[ "-smp", "4" ]],
+            "iso_urls": [
+                "iso/debian-8.10.0-amd64-netinst.iso",
+                "https://cdimage.debian.org/mirror/cdimage/archive/8.10.0/amd64/iso-cd/debian-8.10.0-amd64-netinst.iso"
+            ],
+            "iso_checksum": "19dcfc381bd3e609c6056216d203f5bc",
+            "iso_checksum_type": "md5",
+
+            "http_directory": "http",
+
+            "ssh_username": "{{user `user`}}",
+            "ssh_password": "{{user `password`}}",
+            "shutdown_command": "echo '{{user `password`}}'|sudo -S shutdown -h now",
+
+            "boot_wait": "5s",
+            "boot_command": [
+                "<esc><wait><wait>",
+                "install auto <wait>",
+                "preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg <wait>",
+                "debian-installer=en_US locale=en_AU.UTF-8 keymap=us <wait>",
+                "netcfg/get_hostname={{ .Name }} <wait>",
+                "netcfg/get_domain={{ user `domain`}} <wait>",
+                "fb=false debconf/frontend=noninteractive <wait>",
+                "passwd/user-fullname={{user `user`}} <wait>",
+                "passwd/user-password={{user `password`}} <wait>",
+                "passwd/user-password-again={{user `password`}} <wait>",
+                "passwd/username={{user `user`}} <wait>",
+                "<enter><wait>"
+            ]
+        }
+    ],
+
+    "provisioners": [
+        {
+            "type": "file",
+            "source": "scripts/.ssh",
+            "destination": "/home/vagrant/"
+        },
+        {
+            "type": "shell",
+            "execute_command": "echo '{{user `password`}}' | {{.Vars}} sudo -E -S bash '{{.Path}}'",
+            "scripts": [
+                "scripts/packages.sh",
+                "scripts/vagrant.sh",
+                "scripts/cleanup.sh"
+            ]
+        }
+    ],
+
+    "post-processors": [
+        {
+            "keep_input_artifact": false,
+            "output": "box/debian-jessie.box",
+            "type": "vagrant"
+        }
+    ]
+}
